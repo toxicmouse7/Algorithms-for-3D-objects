@@ -1,0 +1,8 @@
+cmake_minimum_required(VERSION 2.6 FATAL_ERROR)
+project(3D\ Algorithms)
+find_package(PCL REQUIRED)
+include_directories(${PCL_INCLUDE_DIRS})
+link_directories(${PCL_LIBRARY_DIRS})
+add_definitions(${PCL_DEFINITIONS})
+add_executable(CloudProcessing main.cpp CloudHandler.cpp CloudHandler.h)
+target_link_libraries(CloudProcessing ${PCL_LIBRARIES})
