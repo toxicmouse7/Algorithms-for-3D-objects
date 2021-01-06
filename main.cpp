@@ -29,12 +29,14 @@ void saveCloud(const std::string& filename, const pcl::PCLPointCloud2& cloud, bo
 	print_info("[done, "); print_value("%g", tt.toc()); print_info(" ms : "); print_value("%d", cloud.width * cloud.height); print_info(" points]\n");
 }
 
+
+
 int main (int argc, char** argv)
 {
 	// Load the first file
 	pcl::PCLPointCloud2::Ptr loaded_cloud(new pcl::PCLPointCloud2());
-	if (argc < 2 || !loadCloud(argv[1], *loaded_cloud))
-	return (-1);
+	if (argc < 3 || !loadCloud(argv[1], *loaded_cloud))
+        return (-1);
 
 	CloudHandler cloud_handler;
 	pcl::PCLPointCloud2::Ptr voxel_filtered_cloud(new pcl::PCLPointCloud2());
@@ -119,10 +121,20 @@ int main (int argc, char** argv)
     filter.filter(*cow_only);
     PointXYZ uncoloredPoint;
     cloud_handler.CreateParallelepiped(cow_only, cow_only, uncoloredPoint);
-
+    
+    // translate cow
+    pcl::PointCloud<PointXYZ>::Ptr translated_cow(new pcl::PointCloud<PointXYZ>);
+    cloud_handler.TranslateToBase(cow_only, translated_cow);
+    
+    // save PNG
+    cloud_handler.ExportToPNG(translated_cow, std::atoi(argv[2]));
+    
+    
 	// visualize
 	pcl::visualization::PCLVisualizer::Ptr viewer(new pcl::visualization::PCLVisualizer("Visualization"));
 	viewer->addPointCloud(cow_only);
+    viewer->addPointCloud(translated_cow, "translated cow");
+    viewer->addCoordinateSystem();
 	viewer->setBackgroundColor(0, 0, 0);
 	viewer->initCameraParameters();
 

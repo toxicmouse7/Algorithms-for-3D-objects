@@ -192,3 +192,79 @@ void CloudHandler::CreateParallelepiped(pcl::PointCloud<pcl::PointXYZ>::Ptr inpu
         output->push_back(uncoloredPoint);
     }
 }
+
+void CloudHandler::TranslateToBase(pcl::PointCloud<PointXYZ>::Ptr input, pcl::PointCloud<PointXYZ>::Ptr output)
+{
+    float xMin = input->begin()->x;
+    float yMin = input->begin()->y;
+    float zMin = input->begin()->z;
+    
+    for (auto i = input->begin(); i != input->end(); ++i)
+    {
+        xMin = std::min(xMin, i->x);
+        yMin = std::min(yMin, i->y);
+        zMin = std::min(zMin, i->z);
+    }
+    
+    Eigen::Matrix4f translation(4,4);
+    translation << 1, 0, 0, -xMin,
+                   0, 1, 0, -yMin,
+                   0, 0, 1, -zMin,
+                   0, 0, 0, 1;
+    pcl::transformPointCloud(*input, *output, translation);
+}
+
+void CloudHandler::ProjectOnXOY(pcl::PointCloud<PointXYZ>::Ptr input, pcl::PointCloud<PointXYZ>::Ptr output)
+{
+    //might be used for auto-translating
+    pcl::ModelCoefficients::Ptr coefficients(new pcl::ModelCoefficients);
+    coefficients->values.resize(4);
+    coefficients->values[0] = coefficients->values[1] = 0;
+    coefficients->values[2] = 1;
+    coefficients->values[3] = 1;
+    
+    pcl::ProjectInliers<PointXYZ> proj;
+    proj.setModelType(pcl::SACMODEL_PLANE);
+    proj.setInputCloud(input);
+    proj.setModelCoefficients(coefficients);
+    proj.filter(*output);
+    std::cout << output->points.size() << " - points in projection" << std::endl;
+    std::cout << input->points.size() << " - points in original" << std::endl;
+}
+
+void CloudHandler::ExportToPNG(pcl::PointCloud<PointXYZ>::Ptr translated_cloud, bool flip)
+{
+    cv::Size img_size(512, 424);
+    cv::Mat image(img_size, CV_16UC1);
+    
+    float xMax = translated_cloud->begin()->x;
+    float yMax = translated_cloud->begin()->y;
+    float zMax = translated_cloud->begin()->z;
+    
+    for (auto& point : *translated_cloud)
+    {
+        xMax = std::max(xMax, point.x);
+        yMax = std::max(yMax, point.y);
+        zMax = std::max(zMax, point.z);
+    }
+    
+    
+    float xCoefficient = img_size.width / xMax;
+    float yCoefficient = img_size.height / yMax;
+    float zCoefficient = 65535 / zMax;
+    
+    for (auto& point : *translated_cloud)
+    {
+        image.at<ushort>(static_cast<int>(std::round(point.y * yCoefficient)), static_cast<int>(std::round(point.x * xCoefficient))) = static_cast<unsigned int>(std::round(point.z * zCoefficient));
+    }
+    
+    
+    cv::flip(image, image, 0);
+    if (flip)
+        cv::flip(image, image, 1);
+    
+    cv::imwrite("image.png", image);
+}
+
+
+
