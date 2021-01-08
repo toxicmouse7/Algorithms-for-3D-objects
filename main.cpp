@@ -35,7 +35,7 @@ int main (int argc, char** argv)
 {
 	// Load the first file
 	pcl::PCLPointCloud2::Ptr loaded_cloud(new pcl::PCLPointCloud2());
-	if (argc < 3 || !loadCloud(argv[1], *loaded_cloud))
+	if (argc < 4 || !loadCloud(argv[1], *loaded_cloud))
         return (-1);
 
 	CloudHandler cloud_handler;
@@ -114,24 +114,25 @@ int main (int argc, char** argv)
     
     //get cow
     pcl::PointCloud<PointXYZ>::Ptr cow_only(new pcl::PointCloud<PointXYZ>);
+    pcl::PointCloud<PointXYZ>::Ptr cows_parallelepiped(new pcl::PointCloud<PointXYZ>);
     pcl::PassThrough<PointXYZ> filter;
     filter.setInputCloud(cow_cloud);
     filter.setFilterFieldName("z");
     filter.setFilterLimits(1.8, 3);
     filter.filter(*cow_only);
     PointXYZ uncoloredPoint;
-    cloud_handler.CreateParallelepiped(cow_only, cow_only, uncoloredPoint);
+    cloud_handler.CreateParallelepiped(cow_only, cows_parallelepiped, uncoloredPoint);
     
     // translate cow
     pcl::PointCloud<PointXYZ>::Ptr translated_cow(new pcl::PointCloud<PointXYZ>);
-    cloud_handler.TranslateToBase(cow_only, translated_cow);
+    cloud_handler.TranslateToBase(cow_only, cows_parallelepiped, translated_cow);
     
     // save PNG
-    cloud_handler.ExportToPNG(translated_cow, std::atoi(argv[2]));
+    cloud_handler.ExportToPNG(translated_cow, std::atoi(argv[2]), argv[3]);
     
     
 	// visualize
-	pcl::visualization::PCLVisualizer::Ptr viewer(new pcl::visualization::PCLVisualizer("Visualization"));
+	/*pcl::visualization::PCLVisualizer::Ptr viewer(new pcl::visualization::PCLVisualizer("Visualization"));
 	viewer->addPointCloud(cow_only);
     viewer->addPointCloud(translated_cow, "translated cow");
     viewer->addCoordinateSystem();
@@ -168,13 +169,13 @@ int main (int argc, char** argv)
 		switch (color)
 		{
 		case 0:
-			viewer->setShapeRenderingProperties(pcl::visualization::PCL_VISUALIZER_COLOR, 1, 0, 0 /*R,G,B*/, plane.first, 0);
+			viewer->setShapeRenderingProperties(pcl::visualization::PCL_VISUALIZER_COLOR, 1, 0, 0, plane.first, 0);
 			break;
 		case 1:
-			viewer->setShapeRenderingProperties(pcl::visualization::PCL_VISUALIZER_COLOR, 0, 0, 1 /*R,G,B*/, plane.first, 0);
+			viewer->setShapeRenderingProperties(pcl::visualization::PCL_VISUALIZER_COLOR, 0, 0, 1, plane.first, 0);
 			break;
 		default:
-			viewer->setShapeRenderingProperties(pcl::visualization::PCL_VISUALIZER_COLOR, 0, 1, 0 /*R,G,B*/, plane.first, 0);
+			viewer->setShapeRenderingProperties(pcl::visualization::PCL_VISUALIZER_COLOR, 0, 1, 0, plane.first, 0);
 			break;
 		}
 		color++;
@@ -186,7 +187,7 @@ int main (int argc, char** argv)
 	{
 		viewer->spinOnce(100);
 		//boost::this_thread::sleep_for(boost::posix_time::microseconds(100000));
-	}
+	}*/
 
 	return 0;
 }
