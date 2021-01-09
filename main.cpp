@@ -45,8 +45,8 @@ int main (int argc, char** argv)
 	pcl::PCLPointCloud2::Ptr upper(new pcl::PCLPointCloud2());
 	pcl::PCLPointCloud2::Ptr lower(new pcl::PCLPointCloud2());
 	cloud_handler.CutCloud(voxel_filtered_cloud, upper, lower);
-	saveCloud("upper.ply", *upper, false, false);
-	saveCloud("lower.ply", *lower, false, false);
+	//saveCloud("upper.ply", *upper, false, false);
+	//saveCloud("lower.ply", *lower, false, false);
 
 	
 	pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud(new pcl::PointCloud<pcl::PointXYZRGB>);
@@ -59,7 +59,7 @@ int main (int argc, char** argv)
 	cloud_handler.FindPlane(plane, inliers);
 	pcl::PCLPointCloud2::Ptr plane_cloud(new pcl::PCLPointCloud2());
 	pcl::toPCLPointCloud2(*plane, *plane_cloud);
-	saveCloud("green_plane.ply", *plane_cloud, false, false);
+	//saveCloud("green_plane.ply", *plane_cloud, false, false);
 
 
 	// save hooves
@@ -73,7 +73,7 @@ int main (int argc, char** argv)
 
 	pcl::PCLPointCloud2::Ptr hooves_cloud(new pcl::PCLPointCloud2());
 	pcl::toPCLPointCloud2(*hooves, *hooves_cloud);
-	saveCloud("hooves.ply", *hooves_cloud, false, false);
+	//saveCloud("hooves.ply", *hooves_cloud, false, false);
 
 	// add hooves to cow cloud
 	pcl::PointCloud<pcl::PointXYZ>::Ptr cow_cloud(new pcl::PointCloud<pcl::PointXYZ>);
@@ -86,7 +86,7 @@ int main (int argc, char** argv)
 
 	pcl::PCLPointCloud2::Ptr cow(new pcl::PCLPointCloud2());
 	cloud_handler.RorFilterCloud(upper, cow);
-	saveCloud("cow.ply", *cow, false, false);
+	//saveCloud("cow.ply", *cow, false, false);
 
 	// find pca
 	pcl::PCA<pcl::PointXYZ> pca;
@@ -101,39 +101,42 @@ int main (int argc, char** argv)
 	auto vects = pca.getEigenVectors();
 	std::cout << "vects: " << std::endl << vects << std::endl;
 
-	// calculate parallelepiped angles
-	pcl::PointCloud<pcl::PointXYZRGB>::Ptr cow22(new pcl::PointCloud<pcl::PointXYZRGB>);
-	pcl::fromPCLPointCloud2(*cow, *cow22);
-	pcl::PointCloud<pcl::PointXYZRGB>::Ptr parallelepiped(new pcl::PointCloud<pcl::PointXYZRGB>);
-    auto coloredPoint = PointXYZRGB(std::uint8_t(255), 255, 255);
-	cloud_handler.CreateParallelepiped(cow22, parallelepiped, coloredPoint);
-
-	pcl::PCLPointCloud2::Ptr parallelepipedToSave(new pcl::PCLPointCloud2());
-	pcl::toPCLPointCloud2(*parallelepiped, *parallelepipedToSave);
-	saveCloud("parallelepiped.ply", *parallelepipedToSave, false, false);
     
     //get cow
     pcl::PointCloud<PointXYZ>::Ptr cow_only(new pcl::PointCloud<PointXYZ>);
     pcl::PointCloud<PointXYZ>::Ptr cows_parallelepiped(new pcl::PointCloud<PointXYZ>);
-    pcl::PassThrough<PointXYZ> filter;
-    filter.setInputCloud(cow_cloud);
-    filter.setFilterFieldName("z");
-    filter.setFilterLimits(1.8, 3);
-    filter.filter(*cow_only);
+    pcl::PassThrough<PointXYZ> PTfilter;
+    PTfilter.setInputCloud(cow_cloud);
+    PTfilter.setFilterFieldName("z");
+    PTfilter.setFilterLimits(1.75, 3);
+    PTfilter.filter(*cow_only);
     PointXYZ uncoloredPoint;
     cloud_handler.CreateParallelepiped(cow_only, cows_parallelepiped, uncoloredPoint);
     
     // translate cow
     pcl::PointCloud<PointXYZ>::Ptr translated_cow(new pcl::PointCloud<PointXYZ>);
     cloud_handler.TranslateToBase(cow_only, cows_parallelepiped, translated_cow);
+    PTfilter.setInputCloud(translated_cow);
+    PTfilter.setFilterLimits(0, 0.115);
+    PTfilter.setFilterFieldName("y");
+    PTfilter.setNegative(true);
+    PTfilter.filter(*translated_cow);
+    
+    // очень сомнительная вещь
+    /*pcl::RadiusOutlierRemoval<PointXYZ> ROR;
+    ROR.setInputCloud(translated_cow);
+    ROR.setRadiusSearch(0.1);
+    ROR.setMinNeighborsInRadius(80);
+    ROR.filter(*translated_cow);
+    ROR.filter(*translated_cow);*/
+    
     
     // save PNG
-    cloud_handler.ExportToPNG(translated_cow, std::atoi(argv[2]), argv[3]);
+    cloud_handler.ExportImage(translated_cow, std::atoi(argv[2]), argv[3]);
     
     
 	// visualize
-	/*pcl::visualization::PCLVisualizer::Ptr viewer(new pcl::visualization::PCLVisualizer("Visualization"));
-	viewer->addPointCloud(cow_only);
+	pcl::visualization::PCLVisualizer::Ptr viewer(new pcl::visualization::PCLVisualizer("Visualization"));
     viewer->addPointCloud(translated_cow, "translated cow");
     viewer->addCoordinateSystem();
 	viewer->setBackgroundColor(0, 0, 0);
@@ -187,7 +190,7 @@ int main (int argc, char** argv)
 	{
 		viewer->spinOnce(100);
 		//boost::this_thread::sleep_for(boost::posix_time::microseconds(100000));
-	}*/
+	}
 
 	return 0;
 }

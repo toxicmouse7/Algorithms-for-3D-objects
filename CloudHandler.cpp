@@ -232,10 +232,10 @@ void CloudHandler::ProjectOnXOY(pcl::PointCloud<PointXYZ>::Ptr input, pcl::Point
     std::cout << input->points.size() << " - points in original" << std::endl;
 }
 
-void CloudHandler::ExportToPNG(pcl::PointCloud<PointXYZ>::Ptr translated_cloud, bool flip, std::string filename)
+void CloudHandler::ExportImage(pcl::PointCloud<PointXYZ>::Ptr translated_cloud, bool flip, std::string filename)
 {
     cv::Size img_size(512, 424);
-    cv::Mat image(img_size, CV_8UC1);
+    cv::Mat image = cv::Mat::zeros(img_size, CV_8UC1);
     
     float xMax = translated_cloud->begin()->x;
     float yMax = translated_cloud->begin()->y;
@@ -248,8 +248,8 @@ void CloudHandler::ExportToPNG(pcl::PointCloud<PointXYZ>::Ptr translated_cloud, 
         zMax = std::max(zMax, point.z);
     }
     
-    float xCoefficient = img_size.width / xMax;
-    float yCoefficient = img_size.height / yMax;
+    float xCoefficient = (img_size.width - 1) / xMax;
+    float yCoefficient = (img_size.height - 1) / yMax;
     float zCoefficient = UCHAR_MAX / zMax;
     
     std::cout << image.cols << " " << image.rows << std::endl;
@@ -260,9 +260,9 @@ void CloudHandler::ExportToPNG(pcl::PointCloud<PointXYZ>::Ptr translated_cloud, 
         int xInd = std::round(point.x * xCoefficient);
         int zInd = std::round(point.z * zCoefficient);
         
-        std::cout << yInd << " " << xInd << std::endl;
+        //std::cout << yInd << " " << xInd << std::endl;
         
-        image.at<uchar>(yInd - 1, xInd - 1) = zInd;
+        image.at<uchar>(yInd, xInd) = UCHAR_MAX - zInd;
     }
     
     

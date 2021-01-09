@@ -11,6 +11,7 @@
 #include <pcl/filters/extract_indices.h>
 #include <pcl/filters/bilateral.h>
 #include <pcl/filters/project_inliers.h>
+#include <pcl/filters/statistical_outlier_removal.h>
 
 #include <pcl/io/ply_io.h>
 #include <pcl/io/pcd_io.h>
@@ -49,5 +50,5 @@ public:
 	void CutCloud(pcl::PCLPointCloud2::Ptr input, pcl::PCLPointCloud2::Ptr upper, pcl::PCLPointCloud2::Ptr lower);
     void TranslateToBase(pcl::PointCloud<PointXYZ>::Ptr input, pcl::PointCloud<PointXYZ>::Ptr parallelepiped, pcl::PointCloud<PointXYZ>::Ptr output);
     void ProjectOnXOY(pcl::PointCloud<PointXYZ>::Ptr input, pcl::PointCloud<PointXYZ>::Ptr output);
-    void ExportToPNG(pcl::PointCloud<PointXYZ>::Ptr translated_cloud, bool flip, std::string filename);
+    void ExportImage(pcl::PointCloud<PointXYZ>::Ptr translated_cloud, bool flip, std::string filename);
 };
