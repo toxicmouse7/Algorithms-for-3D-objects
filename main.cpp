@@ -1,4 +1,5 @@
 #include <iostream>
+#include <fstream>
 #include "CloudHandler.h"
 
 
@@ -39,6 +40,13 @@ int main (int argc, char** argv)
         return (-1);
 
 	CloudHandler cloud_handler;
+    
+    pcl::PassThrough<PCLPointCloud2> passfilter;
+    passfilter.setInputCloud(loaded_cloud);
+    passfilter.setFilterLimits(1.60, 3);
+    passfilter.setFilterFieldName("z");
+    passfilter.filter(*loaded_cloud);
+    
 	pcl::PCLPointCloud2::Ptr voxel_filtered_cloud(new pcl::PCLPointCloud2());
 	cloud_handler.VoxelFilterCloud(loaded_cloud, voxel_filtered_cloud);
 
@@ -56,10 +64,22 @@ int main (int argc, char** argv)
 	pcl::PointCloud<pcl::PointXYZRGB>::Ptr plane(new pcl::PointCloud<pcl::PointXYZRGB>);
 	pcl::copyPointCloud(*cloud, *plane);
 
-	cloud_handler.FindPlane(plane, inliers);
+	auto model_coef = cloud_handler.FindPlane(plane, inliers);
 	pcl::PCLPointCloud2::Ptr plane_cloud(new pcl::PCLPointCloud2());
 	pcl::toPCLPointCloud2(*plane, *plane_cloud);
 	//saveCloud("green_plane.ply", *plane_cloud, false, false);
+    
+    auto angle = acos(abs(model_coef->values[1]) / std::sqrt(std::pow(model_coef->values[0], 2) + std::pow(model_coef->values[1], 2) + std::pow(model_coef->values[2], 2)));
+    
+    std::cout << "Angle: " << angle << std::endl;
+    
+    Eigen::Matrix4f rot_y;
+    
+    rot_y << cos(angle), 0, sin(angle), 0,
+                  0, 1, 0, 0,
+                  -sin(angle), 0, cos(angle), 0,
+                  0, 0, 0, 1;
+    
 
 
 	// save hooves
@@ -100,27 +120,77 @@ int main (int argc, char** argv)
 	std::cout << "vals: " << std::endl << vals << std::endl;
 	auto vects = pca.getEigenVectors();
 	std::cout << "vects: " << std::endl << vects << std::endl;
+    
+    Eigen::Matrix4f rotation_x, rotation_y, rotation_z;
+    
+    auto xAngle = acos(abs(vects(0, 0)) / std::sqrt(std::pow(vects(0,0), 2) + std::pow(vects(0,1), 2) + std::pow(vects(0, 2), 2)));
+    
+    auto yAngle = acos(abs(vects(1, 1)) / std::sqrt(std::pow(vects(1,0), 2) + std::pow(vects(1,1), 2) + std::pow(vects(1, 2), 2)));
+    
+    auto zAngle = acos(abs(vects(2, 2)) / std::sqrt(std::pow(vects(2,0), 2) + std::pow(vects(2,1), 2) + std::pow(vects(2, 2), 2)));
+    
+    std::cout << "x,y,z = " << xAngle << " " << yAngle << " " << zAngle << std::endl;
+    
+    rotation_x << 1, 0, 0, 0,
+                  0, cos(xAngle), -sin(xAngle), 0,
+                  0, sin(xAngle), cos(xAngle), 0,
+                  0, 0, 0, 1;
+    
+    rotation_y << cos(yAngle), 0, sin(yAngle), 0,
+                  0, 1, 0, 0,
+                  -sin(yAngle), 0, cos(yAngle), 0,
+                  0, 0, 0, 1;
+    
+    rotation_z << cos(zAngle), -sin(zAngle), 0, 0,
+                  sin(zAngle), cos(zAngle), 0, 0,
+                  0, 0, 1, 0,
+                  0, 0, 0, 1;
 
     
-    //get cow
-    pcl::PointCloud<PointXYZ>::Ptr cow_only(new pcl::PointCloud<PointXYZ>);
+    // get cow
     pcl::PointCloud<PointXYZ>::Ptr cows_parallelepiped(new pcl::PointCloud<PointXYZ>);
-    pcl::PassThrough<PointXYZ> PTfilter;
-    PTfilter.setInputCloud(cow_cloud);
-    PTfilter.setFilterFieldName("z");
-    PTfilter.setFilterLimits(1.75, 3);
-    PTfilter.filter(*cow_only);
+    pcl::transformPointCloud(*cow_cloud, *cow_cloud, rot_y);
+    pcl::transformPointCloud(*cow_cloud, *cow_cloud, rotation_x);
+    //pcl::transformPointCloud(*cow_cloud, *cow_cloud, rotation_z);
+    
     PointXYZ uncoloredPoint;
-    cloud_handler.CreateParallelepiped(cow_only, cows_parallelepiped, uncoloredPoint);
+    cloud_handler.CreateParallelepiped(cow_cloud, cows_parallelepiped, uncoloredPoint);
     
     // translate cow
     pcl::PointCloud<PointXYZ>::Ptr translated_cow(new pcl::PointCloud<PointXYZ>);
-    cloud_handler.TranslateToBase(cow_only, cows_parallelepiped, translated_cow);
-    PTfilter.setInputCloud(translated_cow);
-    PTfilter.setFilterLimits(0, 0.115);
-    PTfilter.setFilterFieldName("y");
-    PTfilter.setNegative(true);
-    PTfilter.filter(*translated_cow);
+    cloud_handler.TranslateToBase(cow_cloud, cows_parallelepiped, translated_cow);
+    
+    pcl::PassThrough<PointXYZ> PRfilter;
+    PRfilter.setInputCloud(translated_cow);
+    PRfilter.setFilterFieldName("y");
+    PRfilter.setFilterLimits(1.25, 100);
+    PRfilter.setNegative(true);
+    PRfilter.filter(*translated_cow);
+    
+    //cloud_handler.RorFilterCloud(translated_cow, translated_cow);
+    
+    
+    //xAngle = atan2(Vector3f(1, 0, 0), std::sqrt(std::pow(vects(0,0), 2) + std::pow(vects(0,1), 2) + std::pow(vects(0, 2), 2)));
+    
+    // rotation
+    //pcl::transformPointCloud(*translated_cow, *translated_cow, rotation_x);
+    //pcl::transformPointCloud(*translated_cow, *translated_cow, rotation_y);
+    //pcl::pcl::transformPointCloud(*translated_cow, *translated_cow, rotation_x);
+    
+    /*auto xMax = translated_cow->begin()->x;
+    auto yMax = translated_cow->begin()->y;
+    auto zMax = translated_cow->begin()->z;
+    
+    for (auto& point : *translated_cow)
+    {
+        xMax = std::max(point.x, xMax);
+        yMax = std::max(point.y, yMax);
+        zMax = std::max(point.z, zMax);
+    }
+    
+    std::ofstream output("xyz.txt", std::ios::app);
+    output << xMax << " " << yMax << " " << zMax << std::endl;
+    output.close();*/
     
     // очень сомнительная вещь
     /*pcl::RadiusOutlierRemoval<PointXYZ> ROR;
@@ -128,15 +198,20 @@ int main (int argc, char** argv)
     ROR.setRadiusSearch(0.1);
     ROR.setMinNeighborsInRadius(80);
     ROR.filter(*translated_cow);
-    ROR.filter(*translated_cow);*/
+    ROR.filter(*translated_cow);
+     
+     найти XYZ макс среди всех облаков
+     
+     
+     */
     
     
-    // save PNG
+    // save image
     cloud_handler.ExportImage(translated_cow, std::atoi(argv[2]), argv[3]);
     
     
 	// visualize
-	pcl::visualization::PCLVisualizer::Ptr viewer(new pcl::visualization::PCLVisualizer("Visualization"));
+	/*pcl::visualization::PCLVisualizer::Ptr viewer(new pcl::visualization::PCLVisualizer("Visualization"));
     viewer->addPointCloud(translated_cow, "translated cow");
     viewer->addCoordinateSystem();
 	viewer->setBackgroundColor(0, 0, 0);
@@ -190,7 +265,7 @@ int main (int argc, char** argv)
 	{
 		viewer->spinOnce(100);
 		//boost::this_thread::sleep_for(boost::posix_time::microseconds(100000));
-	}
+	}*/
 
 	return 0;
 }

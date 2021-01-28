@@ -1,5 +1,15 @@
 #include "CloudHandler.h"
 
+template <class T>
+T CloudHandler::clamp(T value, T min, T max)
+{
+    if (value < min)
+        return min;
+    if (value > max)
+        return max;
+    return value;
+}
+
 void CloudHandler::VoxelFilterCloud(pcl::PCLPointCloud2::Ptr input, pcl::PCLPointCloud2::Ptr output) {
 	pcl::VoxelGrid<pcl::PCLPointCloud2> sor;
 	sor.setInputCloud(input);
@@ -15,7 +25,16 @@ void CloudHandler::RorFilterCloud(pcl::PCLPointCloud2::Ptr input, pcl::PCLPointC
 	ror.filter(*output);
 }
 
-void CloudHandler::FindPlane(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud, pcl::PointIndices::Ptr inliers) {
+void CloudHandler::RorFilterCloud(pcl::PointCloud<PointXYZ>::Ptr input, pcl::PointCloud<PointXYZ>::Ptr output)
+{
+    pcl::RadiusOutlierRemoval<PointXYZ> ror;
+    ror.setRadiusSearch(0.025);
+    ror.setMinNeighborsInRadius(10);
+    ror.setInputCloud(input);
+    ror.filter(*output);
+}
+
+pcl::ModelCoefficients::Ptr CloudHandler::FindPlane(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud, pcl::PointIndices::Ptr inliers) {
 	// Find grownd plane
 	pcl::ModelCoefficients::Ptr coefficients(new pcl::ModelCoefficients);
 	// Create the segmentation object
@@ -67,6 +86,8 @@ void CloudHandler::FindPlane(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud, pcl::
 			cloud->erase(cloud->begin() + i, cloud->begin() + i + 1);
 			i--;
 		}
+    
+    return coefficients;
 }
 
 
@@ -148,6 +169,18 @@ void CloudHandler::CreateParallelepiped(pcl::PointCloud<pcl::PointXYZ>::Ptr inpu
 
     for (auto i = input->begin(); i != input->end(); ++i)
     {
+        yMin = std::min(yMin, i->y);
+    }
+    
+    pcl::PassThrough<PointXYZ> psfilter;
+    psfilter.setInputCloud(input);
+    psfilter.setFilterLimits(yMin, yMin + 0.115);
+    psfilter.setNegative(true);
+    psfilter.setFilterFieldName("y");
+    psfilter.filter(*input);
+    
+    for (auto i = input->begin(); i != input->end(); ++i)
+    {
         xMin = std::min(xMin, i->x);
         yMin = std::min(yMin, i->y);
         zMin = std::min(zMin, i->z);
@@ -206,12 +239,12 @@ void CloudHandler::TranslateToBase(pcl::PointCloud<PointXYZ>::Ptr input, pcl::Po
         zMin = std::min(zMin, i->z);
     }
     
-    Eigen::Matrix4f translation(4,4);
-    translation << 1, 0, 0, -xMin,
-                   0, 1, 0, -yMin,
-                   0, 0, 1, -zMin,
-                   0, 0, 0, 1;
-    pcl::transformPointCloud(*input, *output, translation);
+    Eigen::Matrix4f first_translation(4,4);
+    first_translation << 1, 0, 0, -xMin,
+                         0, 1, 0, -yMin,
+                         0, 0, 1, -zMin,
+                         0, 0, 0, 1;
+    pcl::transformPointCloud(*input, *output, first_translation);
 }
 
 void CloudHandler::ProjectOnXOY(pcl::PointCloud<PointXYZ>::Ptr input, pcl::PointCloud<PointXYZ>::Ptr output)
@@ -234,7 +267,7 @@ void CloudHandler::ProjectOnXOY(pcl::PointCloud<PointXYZ>::Ptr input, pcl::Point
 
 void CloudHandler::ExportImage(pcl::PointCloud<PointXYZ>::Ptr translated_cloud, bool flip, std::string filename)
 {
-    cv::Size img_size(512, 424);
+    cv::Size img_size(299, 150);
     cv::Mat image = cv::Mat::zeros(img_size, CV_8UC1);
     
     float xMax = translated_cloud->begin()->x;
@@ -248,21 +281,21 @@ void CloudHandler::ExportImage(pcl::PointCloud<PointXYZ>::Ptr translated_cloud, 
         zMax = std::max(zMax, point.z);
     }
     
-    float xCoefficient = (img_size.width - 1) / xMax;
-    float yCoefficient = (img_size.height - 1) / yMax;
+    float xCoefficient = (img_size.width - 1) / 2.5;
+    float yCoefficient = (img_size.height - 1) / 1.35;
     float zCoefficient = UCHAR_MAX / zMax;
     
     std::cout << image.cols << " " << image.rows << std::endl;
     
-    for (auto& point : *translated_cloud)
+    for (auto point = translated_cloud->begin(); point != translated_cloud->end(); point++)
     {
-        int yInd = std::round(point.y * yCoefficient);
-        int xInd = std::round(point.x * xCoefficient);
-        int zInd = std::round(point.z * zCoefficient);
+        int yInd = std::round(point->y * yCoefficient);
+        int xInd = std::round(point->x * xCoefficient);
+        int zInd = std::round(point->z * zCoefficient);
         
         //std::cout << yInd << " " << xInd << std::endl;
         
-        image.at<uchar>(yInd, xInd) = UCHAR_MAX - zInd;
+        image.at<uchar>(yInd, xInd) = clamp(UCHAR_MAX - zInd, 0, UCHAR_MAX);
     }
     
     
