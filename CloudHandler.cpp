@@ -1,5 +1,9 @@
 #include "CloudHandler.h"
 
+///Returns a value between min and max
+///@param value Value
+///@param min Minimal
+///@param max Maximal
 template <class T>
 T CloudHandler::clamp(T value, T min, T max)
 {
@@ -159,7 +163,10 @@ void CloudHandler::CreateParallelepiped(pcl::PointCloud<pcl::PointXYZRGB>::Ptr i
 	}
 }
 
-void CloudHandler::CreateParallelepiped(pcl::PointCloud<pcl::PointXYZ>::Ptr input, pcl::PointCloud<pcl::PointXYZ>::Ptr output, PointXYZ uncoloredPoint) {
+void CloudHandler::CreateParallelepiped(pcl::PointCloud<pcl::PointXYZ>::Ptr input, pcl::PointCloud<pcl::PointXYZ>::Ptr output)
+{
+    PointXYZ uncoloredPoint;
+    
     float xMin = input->begin()->x;
     float xMax = xMin;
     float yMin = input->begin()->y;
@@ -171,13 +178,6 @@ void CloudHandler::CreateParallelepiped(pcl::PointCloud<pcl::PointXYZ>::Ptr inpu
     {
         yMin = std::min(yMin, i->y);
     }
-    
-    pcl::PassThrough<PointXYZ> psfilter;
-    psfilter.setInputCloud(input);
-    psfilter.setFilterLimits(yMin, yMin + 0.115);
-    psfilter.setNegative(true);
-    psfilter.setFilterFieldName("y");
-    psfilter.filter(*input);
     
     for (auto i = input->begin(); i != input->end(); ++i)
     {
@@ -285,17 +285,18 @@ void CloudHandler::ExportImage(pcl::PointCloud<PointXYZ>::Ptr translated_cloud, 
     float yCoefficient = (img_size.height - 1) / 1.35;
     float zCoefficient = UCHAR_MAX / zMax;
     
-    std::cout << image.cols << " " << image.rows << std::endl;
-    
     for (auto point = translated_cloud->begin(); point != translated_cloud->end(); point++)
     {
         int yInd = std::round(point->y * yCoefficient);
         int xInd = std::round(point->x * xCoefficient);
         int zInd = std::round(point->z * zCoefficient);
         
-        //std::cout << yInd << " " << xInd << std::endl;
+        auto value = clamp(UCHAR_MAX - zInd, 0, UCHAR_MAX);
         
-        image.at<uchar>(yInd, xInd) = clamp(UCHAR_MAX - zInd, 0, UCHAR_MAX);
+        if (image.at<uchar>(yInd, xInd) < value)
+        {
+            image.at<uchar>(yInd, xInd) = value;
+        }
     }
     
     
@@ -304,7 +305,156 @@ void CloudHandler::ExportImage(pcl::PointCloud<PointXYZ>::Ptr translated_cloud, 
         cv::flip(image, image, 1);
     
     cv::imwrite(filename, image);
+    
+    //std::cout << "Saved " << filename << std::endl;
 }
 
+void CloudHandler::RotateX(pcl::PointCloud<PointXYZ>::Ptr input, float angle, PointCloud<PointXYZ>::Ptr output)
+{
+    float theta = DEG2RAD(angle);
+    Eigen::Affine3f transform = Eigen::Affine3f::Identity();
+    transform.rotate(Eigen::AngleAxisf(theta, Eigen::Vector3f::UnitX()));
+    
+    pcl::transformPointCloud(*input, *output, transform);
+}
 
+void CloudHandler::RotateY(pcl::PointCloud<PointXYZ>::Ptr input, float angle, PointCloud<PointXYZ>::Ptr output)
+{
+    float theta = DEG2RAD(angle);
+    Eigen::Affine3f transform = Eigen::Affine3f::Identity();
+    transform.rotate(Eigen::AngleAxisf(theta, Eigen::Vector3f::UnitY()));
+    
+    pcl::transformPointCloud(*input, *output, transform);
+}
+
+///Rotates *cloud* for *angle* degrees about Z-axis
+void CloudHandler::RotateZ(pcl::PointCloud<PointXYZ>::Ptr input, float angle, PointCloud<PointXYZ>::Ptr output)
+{
+    float theta = DEG2RAD(angle);
+    Eigen::Affine3f transform = Eigen::Affine3f::Identity();
+    transform.rotate(Eigen::AngleAxisf(theta, Eigen::Vector3f::UnitZ()));
+    
+    pcl::transformPointCloud(*input, *output, transform);
+}
+
+void CloudHandler::Augmentation(pcl::PointCloud<PointXYZ>::Ptr cloud, std::string base_name)
+{
+    PointCloud<PointXYZ>::Ptr parallelepiped(new PointCloud<PointXYZ>);
+    PointCloud<PointXYZ> cloud_copy;
+    
+    RotateX(cloud, -2, cloud);
+    RotateY(cloud, -2, cloud);
+    
+    copyPointCloud(*cloud, cloud_copy);
+    
+    int id = 0;
+    
+    for (float i = 0.9; i <= 1.11; i += 0.02)
+    {
+        std::cout << i << std::endl;
+        Scale(cloud, Eigen::Vector3f(i, i, i), cloud);
+        
+        for (int j = -2; j <= 2; ++j)
+        {
+            for (int k = -2; k <= 2; ++k)
+            {
+                CreateParallelepiped(cloud, parallelepiped);
+                TranslateToBase(cloud, parallelepiped, cloud);
+                ExportImage(cloud, false, base_name + '.' + std::to_string(id) + ".bmp");
+                parallelepiped.reset(new PointCloud<PointXYZ>);
+                RotateY(cloud, 1, cloud);
+                //Visualize(cloud);
+                ++id;
+            }
+            
+            RotateX(cloud, 1, cloud);
+            RotateY(cloud, -4, cloud);
+        }
+        
+        copyPointCloud(cloud_copy, *cloud);
+    }
+}
+
+void CloudHandler::Visualize(PointCloud<PointXYZ>::Ptr cloud, Eigen::Vector4f& mean, Eigen::Matrix3f& vects)
+{
+    pcl::visualization::PCLVisualizer::Ptr viewer(new pcl::visualization::PCLVisualizer("Visualization"));
+    viewer->addPointCloud(cloud, "translated cow");
+    viewer->addCoordinateSystem();
+    viewer->setBackgroundColor(0, 0, 0);
+    viewer->initCameraParameters();
+
+    //viewer->addPointCloudNormals<pcl::PointXYZ, pcl::Normal>(cow_cloud, normals);
+
+    PointXYZ center = PointXYZ(mean[0], mean[1], mean[2]);
+    PointXYZ p1(center); p1.x += vects(0, 0); p1.y += vects(1, 0); p1.z += vects(2, 0);
+    PointXYZ p2(center); p2.x += vects(0, 1); p2.y += vects(1, 1); p2.z += vects(2, 1);
+    PointXYZ p3(center); p3.x += vects(0, 2); p3.y += vects(1, 2); p3.z += vects(2, 2);
+
+    pcl::ModelCoefficients::Ptr plane_xy(new pcl::ModelCoefficients);
+    plane_xy->values = { vects(0, 2), vects(1, 2), vects(2, 2), std::abs(center.z) };
+    pcl::ModelCoefficients::Ptr plane_xz(new pcl::ModelCoefficients);
+    plane_xz->values = { vects(0, 1), vects(1, 1), vects(2, 1), std::abs(center.y) };
+    pcl::ModelCoefficients::Ptr plane_yz(new pcl::ModelCoefficients);
+    plane_yz->values = { vects(0, 0), vects(1, 0), vects(2, 0), std::abs(center.x) };
+
+    viewer->addLine(center, p1, 1, 0, 0, "xline");
+    viewer->addLine(center, p2, 0, 1, 0, "yline");
+    viewer->addLine(center, p3, 0, 0, 1, "zline");
+
+    std::map<std::string, pcl::ModelCoefficients::Ptr> planes;
+    planes["plane_xy"] = plane_xy;
+    planes["plane_xz"] = plane_xz;
+    planes["plane_yz"] = plane_yz;
+
+    int color = 0;
+    for (auto plane : planes)
+    {
+        viewer->addPlane(*plane.second, plane.first, 0);
+        switch (color)
+        {
+        case 0:
+            viewer->setShapeRenderingProperties(pcl::visualization::PCL_VISUALIZER_COLOR, 1, 0, 0, plane.first, 0);
+            break;
+        case 1:
+            viewer->setShapeRenderingProperties(pcl::visualization::PCL_VISUALIZER_COLOR, 0, 0, 1, plane.first, 0);
+            break;
+        default:
+            viewer->setShapeRenderingProperties(pcl::visualization::PCL_VISUALIZER_COLOR, 0, 1, 0, plane.first, 0);
+            break;
+        }
+        color++;
+        viewer->setShapeRenderingProperties(pcl::visualization::PCL_VISUALIZER_OPACITY, 0.5, plane.first, 0);
+        viewer->setShapeRenderingProperties(pcl::visualization::PCL_VISUALIZER_REPRESENTATION, pcl::visualization::PCL_VISUALIZER_REPRESENTATION_SURFACE, plane.first, 0);
+    }
+
+    while (!viewer->wasStopped())
+    {
+        viewer->spinOnce(100);
+        //boost::this_thread::sleep_for(boost::posix_time::microseconds(100000));
+    }
+}
+
+void CloudHandler::Visualize(PointCloud<PointXYZ>::Ptr cloud)
+{
+    pcl::visualization::PCLVisualizer viewer;
+    
+    viewer.addPointCloud(cloud, "cloud");
+    viewer.addCoordinateSystem();
+    viewer.setBackgroundColor(0, 0, 0);
+    viewer.initCameraParameters();
+    
+    while (!viewer.wasStopped())
+    {
+        viewer.spinOnce(100);
+    }
+}
+
+void CloudHandler::Scale(PointCloud<PointXYZ>::Ptr input, Eigen::Vector3f scaling, PointCloud<PointXYZ>::Ptr output)
+{
+    Eigen::Affine3f transform = Eigen::Affine3f::Identity();
+    
+    transform.scale(scaling);
+    
+    transformPointCloud(*input, *output, transform);
+}
 

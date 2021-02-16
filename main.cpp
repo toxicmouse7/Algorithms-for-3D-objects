@@ -154,7 +154,7 @@ int main (int argc, char** argv)
     //pcl::transformPointCloud(*cow_cloud, *cow_cloud, rotation_z);
     
     PointXYZ uncoloredPoint;
-    cloud_handler.CreateParallelepiped(cow_cloud, cows_parallelepiped, uncoloredPoint);
+    cloud_handler.CreateParallelepiped(cow_cloud, cows_parallelepiped);
     
     // translate cow
     pcl::PointCloud<PointXYZ>::Ptr translated_cow(new pcl::PointCloud<PointXYZ>);
@@ -163,8 +163,7 @@ int main (int argc, char** argv)
     pcl::PassThrough<PointXYZ> PRfilter;
     PRfilter.setInputCloud(translated_cow);
     PRfilter.setFilterFieldName("y");
-    PRfilter.setFilterLimits(1.25, 100);
-    PRfilter.setNegative(true);
+    PRfilter.setFilterLimits(0.115, 100);
     PRfilter.filter(*translated_cow);
     
     //cloud_handler.RorFilterCloud(translated_cow, translated_cow);
@@ -207,65 +206,9 @@ int main (int argc, char** argv)
     
     
     // save image
-    cloud_handler.ExportImage(translated_cow, std::atoi(argv[2]), argv[3]);
+    cloud_handler.Augmentation(translated_cow, argv[3]);
     
-    
-	// visualize
-	/*pcl::visualization::PCLVisualizer::Ptr viewer(new pcl::visualization::PCLVisualizer("Visualization"));
-    viewer->addPointCloud(translated_cow, "translated cow");
-    viewer->addCoordinateSystem();
-	viewer->setBackgroundColor(0, 0, 0);
-	viewer->initCameraParameters();
-
-	//viewer->addPointCloudNormals<pcl::PointXYZ, pcl::Normal>(cow_cloud, normals);
-
-	PointXYZ center = PointXYZ(mean[0], mean[1], mean[2]);
-	PointXYZ p1(center); p1.x += vects(0, 0); p1.y += vects(1, 0); p1.z += vects(2, 0);
-	PointXYZ p2(center); p2.x += vects(0, 1); p2.y += vects(1, 1); p2.z += vects(2, 1);
-	PointXYZ p3(center); p3.x += vects(0, 2); p3.y += vects(1, 2); p3.z += vects(2, 2);
-
-	pcl::ModelCoefficients::Ptr plane_xy(new pcl::ModelCoefficients);
-	plane_xy->values = { vects(0, 2), vects(1, 2), vects(2, 2), std::abs(center.z) };
-	pcl::ModelCoefficients::Ptr plane_xz(new pcl::ModelCoefficients);
-	plane_xz->values = { vects(0, 1), vects(1, 1), vects(2, 1), std::abs(center.y) };
-	pcl::ModelCoefficients::Ptr plane_yz(new pcl::ModelCoefficients);
-	plane_yz->values = { vects(0, 0), vects(1, 0), vects(2, 0), std::abs(center.x) };
-
-	viewer->addLine(center, p1, 1, 0, 0, "xline");
-	viewer->addLine(center, p2, 0, 1, 0, "yline");
-	viewer->addLine(center, p3, 0, 0, 1, "zline");
-
-	std::map<std::string, pcl::ModelCoefficients::Ptr> planes;
-	planes["plane_xy"] = plane_xy;
-	planes["plane_xz"] = plane_xz;
-	planes["plane_yz"] = plane_yz;
-
-	int color = 0;
-	for (auto plane : planes)
-	{
-		viewer->addPlane(*plane.second, plane.first, 0);
-		switch (color)
-		{
-		case 0:
-			viewer->setShapeRenderingProperties(pcl::visualization::PCL_VISUALIZER_COLOR, 1, 0, 0, plane.first, 0);
-			break;
-		case 1:
-			viewer->setShapeRenderingProperties(pcl::visualization::PCL_VISUALIZER_COLOR, 0, 0, 1, plane.first, 0);
-			break;
-		default:
-			viewer->setShapeRenderingProperties(pcl::visualization::PCL_VISUALIZER_COLOR, 0, 1, 0, plane.first, 0);
-			break;
-		}
-		color++;
-		viewer->setShapeRenderingProperties(pcl::visualization::PCL_VISUALIZER_OPACITY, 0.5, plane.first, 0);
-		viewer->setShapeRenderingProperties(pcl::visualization::PCL_VISUALIZER_REPRESENTATION, pcl::visualization::PCL_VISUALIZER_REPRESENTATION_SURFACE, plane.first, 0);
-	}
-
-	while (!viewer->wasStopped())
-	{
-		viewer->spinOnce(100);
-		//boost::this_thread::sleep_for(boost::posix_time::microseconds(100000));
-	}*/
-
+    //cloud_handler.Visualize(translated_cow, mean, vects);
+	
 	return 0;
 }

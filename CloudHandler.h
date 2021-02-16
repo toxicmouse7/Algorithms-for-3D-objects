@@ -36,6 +36,8 @@
 
 #include <cmath>
 
+#define PI 3.14159265
+
 using namespace pcl;
 using namespace pcl::io;
 using namespace pcl::console;
@@ -49,9 +51,16 @@ public:
 	void RorFilterCloud(pcl::PCLPointCloud2::Ptr input, pcl::PCLPointCloud2::Ptr output);
     pcl::ModelCoefficients::Ptr FindPlane(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud, pcl::PointIndices::Ptr inliers);
 	void CreateParallelepiped(pcl::PointCloud<pcl::PointXYZRGB>::Ptr input, pcl::PointCloud<pcl::PointXYZRGB>::Ptr output, PointXYZRGB);
-    void CreateParallelepiped(pcl::PointCloud<pcl::PointXYZ>::Ptr input, pcl::PointCloud<pcl::PointXYZ>::Ptr output, PointXYZ);
+    void CreateParallelepiped(pcl::PointCloud<pcl::PointXYZ>::Ptr input, pcl::PointCloud<pcl::PointXYZ>::Ptr output);
 	void CutCloud(pcl::PCLPointCloud2::Ptr input, pcl::PCLPointCloud2::Ptr upper, pcl::PCLPointCloud2::Ptr lower);
     void TranslateToBase(pcl::PointCloud<PointXYZ>::Ptr input, pcl::PointCloud<PointXYZ>::Ptr parallelepiped, pcl::PointCloud<PointXYZ>::Ptr output);
     void ProjectOnXOY(pcl::PointCloud<PointXYZ>::Ptr input, pcl::PointCloud<PointXYZ>::Ptr output);
     void ExportImage(pcl::PointCloud<PointXYZ>::Ptr translated_cloud, bool flip, std::string filename);
+    void RotateX(pcl::PointCloud<PointXYZ>::Ptr cloud, float angle, PointCloud<PointXYZ>::Ptr output);
+    void RotateY(pcl::PointCloud<PointXYZ>::Ptr cloud, float angle, PointCloud<PointXYZ>::Ptr output);
+    void RotateZ(pcl::PointCloud<PointXYZ>::Ptr cloud, float angle, PointCloud<PointXYZ>::Ptr output);
+    void Scale(PointCloud<PointXYZ>::Ptr input, Eigen::Vector3f scaling, PointCloud<PointXYZ>::Ptr output);
+    void Augmentation(pcl::PointCloud<PointXYZ>::Ptr cloud, std::string base_name);
+    void Visualize(PointCloud<PointXYZ>::Ptr cloud, Eigen::Vector4f& mean, Eigen::Matrix3f& vects);
+    void Visualize(PointCloud<PointXYZ>::Ptr cloud);
 };
