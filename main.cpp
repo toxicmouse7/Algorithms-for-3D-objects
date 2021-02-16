@@ -153,7 +153,6 @@ int main (int argc, char** argv)
     pcl::transformPointCloud(*cow_cloud, *cow_cloud, rotation_x);
     //pcl::transformPointCloud(*cow_cloud, *cow_cloud, rotation_z);
     
-    PointXYZ uncoloredPoint;
     cloud_handler.CreateParallelepiped(cow_cloud, cows_parallelepiped);
     
     // translate cow
@@ -206,7 +205,7 @@ int main (int argc, char** argv)
     
     
     // save image
-    cloud_handler.Augmentation(translated_cow, argv[3]);
+    cloud_handler.Augmentation(translated_cow, argv[3], std::atoi(argv[2]));
     
     //cloud_handler.Visualize(translated_cow, mean, vects);
 	

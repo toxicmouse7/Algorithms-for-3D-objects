@@ -265,7 +265,7 @@ void CloudHandler::ProjectOnXOY(pcl::PointCloud<PointXYZ>::Ptr input, pcl::Point
     std::cout << input->points.size() << " - points in original" << std::endl;
 }
 
-void CloudHandler::ExportImage(pcl::PointCloud<PointXYZ>::Ptr translated_cloud, bool flip, std::string filename)
+void CloudHandler::ExportImage(pcl::PointCloud<PointXYZ>::Ptr translated_cloud, std::string filename)
 {
     cv::Size img_size(299, 150);
     cv::Mat image = cv::Mat::zeros(img_size, CV_8UC1);
@@ -301,12 +301,7 @@ void CloudHandler::ExportImage(pcl::PointCloud<PointXYZ>::Ptr translated_cloud, 
     
     
     cv::flip(image, image, 0);
-    if (flip)
-        cv::flip(image, image, 1);
-    
     cv::imwrite(filename, image);
-    
-    //std::cout << "Saved " << filename << std::endl;
 }
 
 void CloudHandler::RotateX(pcl::PointCloud<PointXYZ>::Ptr input, float angle, PointCloud<PointXYZ>::Ptr output)
@@ -337,10 +332,15 @@ void CloudHandler::RotateZ(pcl::PointCloud<PointXYZ>::Ptr input, float angle, Po
     pcl::transformPointCloud(*input, *output, transform);
 }
 
-void CloudHandler::Augmentation(pcl::PointCloud<PointXYZ>::Ptr cloud, std::string base_name)
+void CloudHandler::Augmentation(pcl::PointCloud<PointXYZ>::Ptr cloud, std::string base_name, bool flip)
 {
     PointCloud<PointXYZ>::Ptr parallelepiped(new PointCloud<PointXYZ>);
     PointCloud<PointXYZ> cloud_copy;
+    
+    if (flip)
+    {
+        FlipX(cloud, cloud);
+    }
     
     RotateX(cloud, -2, cloud);
     RotateY(cloud, -2, cloud);
@@ -360,7 +360,7 @@ void CloudHandler::Augmentation(pcl::PointCloud<PointXYZ>::Ptr cloud, std::strin
             {
                 CreateParallelepiped(cloud, parallelepiped);
                 TranslateToBase(cloud, parallelepiped, cloud);
-                ExportImage(cloud, false, base_name + '.' + std::to_string(id) + ".bmp");
+                ExportImage(cloud, base_name + '.' + std::to_string(id) + ".bmp");
                 parallelepiped.reset(new PointCloud<PointXYZ>);
                 RotateY(cloud, 1, cloud);
                 //Visualize(cloud);
@@ -457,4 +457,16 @@ void CloudHandler::Scale(PointCloud<PointXYZ>::Ptr input, Eigen::Vector3f scalin
     
     transformPointCloud(*input, *output, transform);
 }
+
+void CloudHandler::FlipX(PointCloud<PointXYZ>::Ptr input, PointCloud<PointXYZ>::Ptr output)
+{
+    Affine3f transform = Affine3f::Identity();
+    
+    Vector3f flip(-1, 1, 1);
+    
+    transform.scale(flip);
+    
+    transformPointCloud(*input, *output, transform);
+}
+
 
