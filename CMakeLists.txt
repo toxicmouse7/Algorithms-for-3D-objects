@@ -1,5 +1,6 @@
-cmake_minimum_required(VERSION 2.6 FATAL_ERROR)
+cmake_minimum_required(VERSION 3.0 FATAL_ERROR)
 project(3D\ Algorithms)
+set(CMAKE_OSX_ARCHITECTURES arm64)
 find_package(PCL REQUIRED)
 find_package(OpenCV REQUIRED)
 include_directories(${PCL_INCLUDE_DIRS})

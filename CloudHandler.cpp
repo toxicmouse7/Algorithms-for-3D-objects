@@ -1,9 +1,5 @@
 #include "CloudHandler.h"
 
-///Returns a value between min and max
-///@param value Value
-///@param min Minimal
-///@param max Maximal
 template <class T>
 T CloudHandler::clamp(T value, T min, T max)
 {
