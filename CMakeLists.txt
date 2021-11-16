@@ -1,12 +1,15 @@
-cmake_minimum_required(VERSION 3.0 FATAL_ERROR)
-project(3D\ Algorithms)
-set(CMAKE_OSX_ARCHITECTURES arm64)
-find_package(PCL REQUIRED)
+cmake_minimum_required(VERSION 3.20)
+project(cows)
+
+set(CMAKE_CXX_STANDARD 17)
+
+
+find_package(PCL 1.3 REQUIRED)
 find_package(OpenCV REQUIRED)
 include_directories(${PCL_INCLUDE_DIRS})
 include_directories(${OpenCV_INCLUDE_DIRS})
 link_directories(${PCL_LIBRARY_DIRS})
 add_definitions(${PCL_DEFINITIONS})
-add_executable(CloudProcessing main.cpp CloudHandler.cpp CloudHandler.h)
-target_link_libraries(CloudProcessing ${PCL_LIBRARIES})
-target_link_libraries(CloudProcessing ${OpenCV_LIBS})
+add_executable(cows main.cpp CloudHandler.cpp CloudHandler.h)
+target_link_libraries(cows ${PCL_LIBRARIES})
+target_link_libraries(cows ${OpenCV_LIBS})
