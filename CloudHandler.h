@@ -56,11 +56,7 @@ public:
     template<class T>
     static T clamp(T value, T min, T max)
     {
-        if (value < min)
-            return min;
-        if (value > max)
-            return max;
-        return value;
+        return std::max(std::min(value, max), min);
     }
 
     static void VoxelFilterCloud(const PCLPointCloud2::Ptr &input,
@@ -282,21 +278,30 @@ public:
 
     template <class PointT>
     static void ExportImageRGB(const typename PointCloud<PointT>::Ptr &translated_cloud,
-                               std::string &filename)
+                               std::string &filename,
+                               const cv::Size& img_size,
+                               int delta)
     {
-        cv::Size img_size(299, 150);
         cv::Mat image = cv::Mat::zeros(img_size, CV_8UC3);
 
+        auto z_comp = [](const PointT &p1, const PointT &p2) { return p1.z < p2.z; };
+
+        float zMax = std::max_element(translated_cloud->begin(), translated_cloud->end(),
+                                      z_comp)->z;
 
         double xCoefficient = (img_size.width - 1) / 2.5;
         double yCoefficient = (img_size.height - 1) / 1.35;
+        double zCoefficient = UCHAR_MAX / zMax;
 
         for (auto &point: *translated_cloud)
         {
             int yInd = (int) std::round(point.y * yCoefficient);
             int xInd = (int) std::round(point.x * xCoefficient);
+            int zInd = (int) std::round(point.z * zCoefficient);
 
-            if (image.at<uchar>(yInd, xInd) == 0)
+            auto value = CloudHandler::clamp<int>(UCHAR_MAX - zInd, 0, UCHAR_MAX);
+
+            if (image.at<uchar>(yInd, xInd) < value)
             {
                 image.at<cv::Vec3b>(yInd, xInd) = {point.b, point.g, point.r};
             }
@@ -304,6 +309,18 @@ public:
 
 
         cv::flip(image, image, 0);
+//        PointCloud<PointXYZRGB>::Ptr t = ProjectToPlane(translated_cloud, {0, 0, 0}, {1, 0, 0}, {0, 1, 0});
+//        VoxelGrid<PointXYZRGB> grid;
+//        grid.setInputCloud(t);
+//        grid.setLeafSize (0.01f, 0.01f, 100000.0f);
+//        grid.filter(*t);
+//        if (t->isOrganized())
+//            std::cout << "yeeees" << std::endl;
+//        PCLImage img;
+//        io::PointCloudImageExtractorFromRGBField<PointXYZRGB> extractor;
+//        if (extractor.extract(*t, img))
+//            io::savePNGFile("test.png", img);
+        image = RemoveHoles(image, delta);
         cv::imwrite(filename, image);
     }
 
@@ -420,7 +437,7 @@ public:
                           Eigen::Matrix3f &vectors);
 
     template<class PointT>
-    void Visualize(const typename PointCloud<PointT>::Ptr &cloud)
+    static void Visualize(const typename PointCloud<PointT>::Ptr &cloud)
     {
         pcl::visualization::PCLVisualizer viewer;
 
@@ -433,5 +450,41 @@ public:
         {
             viewer.spinOnce(100);
         }
+    }
+
+    static cv::Mat RemoveHoles(const cv::Mat& img, int delta);
+    static std::list<cv::Vec3b> getPixelsInRadius(const cv::Mat& img, int x, int y, int radius);
+
+    static pcl::PointCloud<pcl::PointXYZRGB>::Ptr ProjectToPlane(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud, Eigen::Vector3f origin, Eigen::Vector3f axis_x, Eigen::Vector3f axis_y)
+    {
+        PointCloud<PointXYZRGB>::Ptr aux_cloud(new PointCloud<PointXYZRGB>);
+        copyPointCloud(*cloud, *aux_cloud);
+
+        auto normal = axis_x.cross(axis_y);
+        Eigen::Hyperplane<float, 3> plane(normal, origin);
+
+        for (auto itPoint = aux_cloud->begin(); itPoint != aux_cloud->end(); itPoint++)
+        {
+            // project point to plane
+            auto proj = plane.projection(itPoint->getVector3fMap());
+            itPoint->getVector3fMap() = proj;
+        }
+        return aux_cloud;
+    }
+
+    pcl::PointCloud<pcl::PointXYZRGB>::Ptr GenerateGrid(Eigen::Vector3f origin, Eigen::Vector3f axis_x , Eigen::Vector3f axis_y, float length, int image_size)
+    {
+        auto step = length / image_size;
+
+        pcl::PointCloud<pcl::PointXYZRGB>::Ptr image_cloud(new pcl::PointCloud<pcl::PointXYZRGB>(image_size, image_size));
+        for (auto i = 0; i < image_size; i++)
+            for (auto j = 0; j < image_size; j++)
+            {
+                int x = i - int(image_size / 2);
+                int y = j - int(image_size / 2);
+                //image_cloud->at(i, j).getVector3fMap() = center + (x * step * axisx) + (y * step * axisy);
+            }
+
+        return image_cloud;
     }
 };

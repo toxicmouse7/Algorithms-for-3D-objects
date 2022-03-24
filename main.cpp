@@ -46,7 +46,10 @@ int main(int argc, char **argv)
     // Load the first file
     pcl::PCLPointCloud2::Ptr loaded_cloud(new pcl::PCLPointCloud2());
     if (argc < 4 || !loadCloud(argv[1], *loaded_cloud))
+    {
+        std::cout << "Usage: cows [ply] [flip x] [image name]" << std::endl;
         return (-1);
+    }
 
     pcl::PassThrough<PCLPointCloud2> passfilter;
     passfilter.setInputCloud(loaded_cloud);
@@ -221,7 +224,9 @@ int main(int argc, char **argv)
     //cloud_handler.Augmentation(translated_cow, argv[3], std::atoi(argv[2]));
     //cloud_handler.FlipX(translated_cow, translated_cow);
     std::string filename = argv[3];
-    CloudHandler::ExportImageDepth<PointXYZRGB>(translated_cow, filename);
+    //CloudHandler::ExportImageDepth<PointXYZRGB>(translated_cow, filename);
+    //CloudHandler::Visualize<PointXYZRGB>(translated_cow);
+    CloudHandler::ExportImageRGB<PointXYZRGB>(translated_cow, filename, {600, 300}, std::stoi(argv[2]));
     //cloud_handler.Visualize(translated_cow, mean, vects);
 
     return 0;

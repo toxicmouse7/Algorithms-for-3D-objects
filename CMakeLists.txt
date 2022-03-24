@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.20)
 project(cows)
 
 set(CMAKE_CXX_STANDARD 17)
-
+set(CMAKE_OSX_ARCHITECTURES arm64)
 
 find_package(PCL 1.3 REQUIRED)
 find_package(OpenCV REQUIRED)
