@@ -105,33 +105,34 @@ void CloudHandler::Visualize(const PointCloud<PointXYZ>::Ptr& cloud, Eigen::Vect
     }
 }
 
-std::list<cv::Vec3b> CloudHandler::getPixelsInRadius(const cv::Mat& img, int x, int y, int radius)
+std::list<cv::Vec3b> CloudHandler::getPixelsInRadius(const cv::Mat& img, const cv::Point2i& point, int radius,
+                                                     std::function<bool(const cv::Vec3b&)> pred)
 {
-    static const cv::Vec3b black_point = {0, 0, 0};
     const cv::Size img_size = {img.cols, img.rows};
     std::list<cv::Vec3b> result;
 
     for (int iteration = 1; iteration <= radius; ++iteration)
     {
-        cv::Vec2i upperLeftPoint = {x - iteration, y - iteration};
-        cv::Vec2i bottomRightPoint = {x + iteration, y + iteration};
+        cv::Vec2i upperLeftPoint = {point.x - iteration, point.y - iteration};
+        cv::Vec2i bottomRightPoint = {point.x + iteration, point.y + iteration};
 
         for (int p_x = upperLeftPoint[0]; p_x < bottomRightPoint[0]; ++p_x)
         {
             if (p_x >= 0 && p_x < img_size.width)
             {
+
                 if (upperLeftPoint[1] >= 0 && upperLeftPoint[1] < img_size.height)
                 {
                     //std::cout << "Upper point: " << p_x << ", " << upperLeftPoint[1] << '\n';
                     auto& p = img.at<cv::Vec3b>(upperLeftPoint[1], p_x);
-                    if (p != black_point)
+                    if (pred(p))
                         result.push_back(p);
                 }
                 if (bottomRightPoint[1] >= 0 && bottomRightPoint[1] < img_size.height)
                 {
                     //std::cout << "Bottom point: " << p_x << ", " << bottomRightPoint[1] << '\n';
                     auto& p = img.at<cv::Vec3b>(bottomRightPoint[1], p_x);
-                    if (p != black_point)
+                    if (pred(p))
                         result.push_back(p);
                 }
             }
@@ -145,24 +146,24 @@ std::list<cv::Vec3b> CloudHandler::getPixelsInRadius(const cv::Mat& img, int x, 
                 {
                     //std::cout << "Upper point: " << upperLeftPoint[0] << ", " << p_y << '\n';
                     auto& p = img.at<cv::Vec3b>(p_y, upperLeftPoint[0]);
-                    if (p != black_point)
+                    if (pred(p))
                         result.push_back(p);
                 }
                 if (bottomRightPoint[0] >= 0 && bottomRightPoint[0] < img_size.width)
                 {
                     //std::cout << "Bottom point: " << bottomRightPoint[0] << ", " << p_y << '\n';
                     auto& p = img.at<cv::Vec3b>(p_y, bottomRightPoint[0]);
-                    if (p != black_point)
+                    if (pred(p))
                         result.push_back(p);
                 }
             }
         }
     }
 
-    return result;
+    return std::move(result);
 }
 
-cv::Mat CloudHandler::RemoveHoles(const cv::Mat& img, int delta)
+cv::Mat CloudHandler::RemoveHolesWithMeans(const cv::Mat& img, int delta)
 {
     cv::Mat new_img;
     img.copyTo(new_img);
@@ -171,7 +172,11 @@ cv::Mat CloudHandler::RemoveHoles(const cv::Mat& img, int delta)
     {
         for (int x = 0; x < img.cols; x += 1)
         {
-            auto pixels = getPixelsInRadius(img, x, y, delta);
+            auto pixels = getPixelsInRadius(img, {x, y}, delta,
+                                            [](const cv::Vec3b& p)
+                                            {
+                                                return p != cv::Vec3b{0, 0, 0};
+                                            });
             if (pixels.size() >= 5)
             {
                 cv::Vec3i colors = {0, 0, 0};
@@ -187,3 +192,69 @@ cv::Mat CloudHandler::RemoveHoles(const cv::Mat& img, int delta)
 
     return new_img;
 }
+
+cv::Mat CloudHandler::RemoveHolesWithReplace(const cv::Mat& img, int radius)
+{
+    static const cv::Vec3b blackPoint = {0, 0, 0};
+    cv::Mat new_img;
+    img.copyTo(new_img);
+
+    for (int y = 0 + radius; y < img.rows - radius; ++y)
+    {
+        for (int x = 0 + radius; x < img.cols - radius; ++x)
+        {
+            if (img.at<cv::Vec3b>(y, x) != blackPoint)
+                continue;
+
+            auto pixels = getPixelsInRadius(img, {x, y}, radius,
+                                            [](const cv::Vec3b& p)
+                                            {
+                                                return p != cv::Vec3b{0, 0, 0};
+                                            });
+
+            if (pixels.empty())
+                continue;
+
+            new_img.at<cv::Vec3b>(y, x) = pixels.front();
+            x += radius * 2;
+        }
+    }
+
+    return std::move(new_img);
+}
+
+cv::Mat CloudHandler::RemoveHolesWithReplaceExpanding(const cv::Mat& img)
+{
+    const int radius = 7;
+    const cv::Vec3b blackPoint = {0, 0, 0};
+    cv::Mat new_img;
+    img.copyTo(new_img);
+
+    for (int y = 0 + radius; y < img.rows - radius; ++y)
+    {
+        for (int x = 0 + radius; x < img.cols - radius; ++x)
+        {
+            if (img.at<cv::Vec3b>(y, x) != blackPoint)
+                continue;
+            std::list<cv::Vec3b> pixels;
+
+            for (auto inc_radius = 3; pixels.empty() && inc_radius <= 7; inc_radius += 2)
+            {
+                pixels = getPixelsInRadius(img, {x, y}, inc_radius,
+                                           [](const cv::Vec3b& p)
+                                           {
+                                               return p != cv::Vec3b{0, 0, 0};
+                                           });
+            }
+
+            if (pixels.empty())
+                continue;
+
+            new_img.at<cv::Vec3b>(y, x) = pixels.front();
+            x += radius * 2;
+        }
+    }
+
+    return std::move(new_img);
+}
+

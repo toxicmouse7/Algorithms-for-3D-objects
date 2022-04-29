@@ -222,11 +222,11 @@ int main(int argc, char **argv)
 
     // save image
     //cloud_handler.Augmentation(translated_cow, argv[3], std::atoi(argv[2]));
-    //cloud_handler.FlipX(translated_cow, translated_cow);
+    CloudHandler::FlipX<PointXYZRGB>(translated_cow, translated_cow);
     std::string filename = argv[3];
     //CloudHandler::ExportImageDepth<PointXYZRGB>(translated_cow, filename);
     //CloudHandler::Visualize<PointXYZRGB>(translated_cow);
-    CloudHandler::ExportImageRGB<PointXYZRGB>(translated_cow, filename, {600, 300}, std::stoi(argv[2]));
+    CloudHandler::ExportImageRGB<PointXYZRGB>(translated_cow, filename, {1920, 1080}, std::stoi(argv[2]));
     //cloud_handler.Visualize(translated_cow, mean, vects);
 
     return 0;

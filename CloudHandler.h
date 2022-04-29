@@ -320,7 +320,10 @@ public:
 //        io::PointCloudImageExtractorFromRGBField<PointXYZRGB> extractor;
 //        if (extractor.extract(*t, img))
 //            io::savePNGFile("test.png", img);
-        image = RemoveHoles(image, delta);
+        //image = RemoveHolesWithReplace(RemoveHolesWithReplace(image, delta), delta);
+        for (int i = 0; i < delta; ++i)
+            image = RemoveHolesWithReplace(image, 3);
+        // image = RemoveHolesWithReplaceExpanding(image);
         cv::imwrite(filename, image);
     }
 
@@ -452,8 +455,9 @@ public:
         }
     }
 
-    static cv::Mat RemoveHoles(const cv::Mat& img, int delta);
-    static std::list<cv::Vec3b> getPixelsInRadius(const cv::Mat& img, int x, int y, int radius);
+    static cv::Mat RemoveHolesWithMeans(const cv::Mat& img, int delta);
+    static std::list<cv::Vec3b> getPixelsInRadius(const cv::Mat& img, const cv::Point2i& point, int radius,
+                                                  std::function<bool (const cv::Vec3b&)> pred);
 
     static pcl::PointCloud<pcl::PointXYZRGB>::Ptr ProjectToPlane(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud, Eigen::Vector3f origin, Eigen::Vector3f axis_x, Eigen::Vector3f axis_y)
     {
@@ -487,4 +491,7 @@ public:
 
         return image_cloud;
     }
+
+    static cv::Mat RemoveHolesWithReplace(const cv::Mat& img, int radius);
+    static cv::Mat RemoveHolesWithReplaceExpanding(const cv::Mat& img);
 };
