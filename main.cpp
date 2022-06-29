@@ -1,5 +1,5 @@
 #include <iostream>
-#include "CloudHandler.h"
+#include "CloudHandler.hpp"
 
 
 bool loadCloud(const std::string &filename, pcl::PCLPointCloud2 &cloud)
@@ -168,6 +168,8 @@ int main(int argc, char **argv)
     pcl::transformPointCloud(*cow_cloud, *cow_cloud, rotation_x);
     //pcl::transformPointCloud(*cow_cloud, *cow_cloud, rotation_z);
 
+    CloudHandler::ExportPNGExperimental<PointXYZRGB>(cow_cloud);
+
     CloudHandler::FlipX<PointXYZRGB>(cow_cloud, cow_cloud);
     CloudHandler::CreateParallelepiped<PointXYZRGB>(cow_cloud, cows_parallelepiped);
 
@@ -222,8 +224,9 @@ int main(int argc, char **argv)
 
     // save image
     //cloud_handler.Augmentation(translated_cow, argv[3], std::atoi(argv[2]));
-    CloudHandler::FlipX<PointXYZRGB>(translated_cow, translated_cow);
+    //CloudHandler::FlipX<PointXYZRGB>(translated_cow, translated_cow);
     std::string filename = argv[3];
+    //CloudHandler::Visualize<PointXYZRGB>(translated_cow);
     //CloudHandler::ExportImageDepth<PointXYZRGB>(translated_cow, filename);
     //CloudHandler::Visualize<PointXYZRGB>(translated_cow);
     CloudHandler::ExportImageRGB<PointXYZRGB>(translated_cow, filename, {1920, 1080}, std::stoi(argv[2]));

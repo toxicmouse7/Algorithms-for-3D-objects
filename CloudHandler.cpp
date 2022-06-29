@@ -1,4 +1,4 @@
-#include "CloudHandler.h"
+#include "CloudHandler.hpp"
 #include <memory>
 
 void CloudHandler::VoxelFilterCloud(const pcl::PCLPointCloud2::Ptr& input,
