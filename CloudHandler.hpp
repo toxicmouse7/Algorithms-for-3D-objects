@@ -451,7 +451,9 @@ public:
         //viewer.addCoordinateSystem();
         viewer.setBackgroundColor(0, 0, 0);
         viewer.initCameraParameters();
-        viewer.setCameraPosition(0, 0, -1.5, 0, -0.5, 0, 0, 0, 0);
+        viewer.setCameraPosition(-0.2, -0.55, -1.42, 0, -0.55, 0, 0, 0, 0);
+        viewer.setShowFPS(false);
+        viewer.saveScreenshot("test.png");
 
         while (!viewer.wasStopped())
         {
