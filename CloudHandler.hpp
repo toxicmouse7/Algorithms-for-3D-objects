@@ -285,6 +285,7 @@ public:
                                const cv::Size& img_size,
                                int delta)
     {
+        auto start = std::chrono::high_resolution_clock::now();
         cv::Mat image = cv::Mat::zeros(img_size, CV_8UC3);
 
         auto z_comp = [](const PointT& p1, const PointT& p2) { return p1.z < p2.z; };
@@ -313,21 +314,37 @@ public:
 
         cv::flip(image, image, 0);
 
-        //image = RemoveHolesWithReplace(RemoveHolesWithReplace(image, delta), delta);
-        //image = RemoveHolesWithMeans(image, delta);
-//        for (int i = 0; i < delta; ++i)
-//            image = RemoveHolesWithReplace(image, 3);
+//        image = RemoveHolesWithReplace(RemoveHolesWithReplace(image, delta), delta);
+//        image = RemoveHolesWithMeans(image, delta);
+        for (int i = 0; i < delta; ++i)
+            image = RemoveHolesWithReplace(image, 3);
 //        for (int i = 0; i < delta; ++i)
 //            image = RemoveHolesWithReplaceExpanding(image);
         cv::imwrite(filename, image);
+
+        auto end = std::chrono::high_resolution_clock::now();
+
+        std::cout << std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count() << '\n';
     }
 
     template<class PointT>
     static void ExportPNGExperimental(const typename PointCloud<PointT>::Ptr& translated_cloud)
     {
+        auto start = std::chrono::high_resolution_clock::now();
         auto projection = ProjectToPlane(translated_cloud, {0, 0, 0}, {1, 0, 0}, {0, 1, 0});
 
-        Visualize<PointXYZRGB>(projection);
+        pcl::visualization::PCLVisualizer viewer;
+
+        viewer.addPointCloud(projection, "cloud");
+        viewer.setBackgroundColor(0, 0, 0);
+        viewer.setCameraPosition(-0.2, -0.55, -2.5, 0, -0.55, 0, 0, 0, 0);
+        viewer.setShowFPS(false);
+        viewer.saveScreenshot("test.png");
+        while (!viewer.wasStopped())
+            viewer.spinOnce(100);
+        auto end = std::chrono::high_resolution_clock::now();
+
+        std::cout << std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count() << '\n';
     }
 
     template<class PointT>

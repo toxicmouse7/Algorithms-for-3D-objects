@@ -2,7 +2,7 @@
 #include "CloudHandler.hpp"
 
 
-bool loadCloud(const std::string &filename, pcl::PCLPointCloud2 &cloud)
+bool loadCloud(const std::string& filename, pcl::PCLPointCloud2& cloud)
 {
     TicToc tt;
     print_highlight("Loading ");
@@ -22,7 +22,7 @@ bool loadCloud(const std::string &filename, pcl::PCLPointCloud2 &cloud)
     return (true);
 }
 
-void saveCloud(const std::string &filename, const pcl::PCLPointCloud2 &cloud, bool binary, bool use_camera)
+void saveCloud(const std::string& filename, const pcl::PCLPointCloud2& cloud, bool binary, bool use_camera)
 {
     TicToc tt;
     tt.tic();
@@ -41,7 +41,7 @@ void saveCloud(const std::string &filename, const pcl::PCLPointCloud2 &cloud, bo
 }
 
 
-int main(int argc, char **argv)
+int main(int argc, char** argv)
 {
     // Load the first file
     pcl::PCLPointCloud2::Ptr loaded_cloud(new pcl::PCLPointCloud2());
@@ -51,27 +51,27 @@ int main(int argc, char **argv)
         return (-1);
     }
 
-    pcl::PassThrough<PCLPointCloud2> passfilter;
+    pcl::PassThrough <PCLPointCloud2> passfilter;
     passfilter.setInputCloud(loaded_cloud);
     passfilter.setFilterLimits(1.60, 3);
     passfilter.setFilterFieldName("z");
     passfilter.filter(*loaded_cloud);
 
-    pcl::PCLPointCloud2::Ptr voxel_filtered_cloud(new pcl::PCLPointCloud2());
-    CloudHandler::VoxelFilterCloud(loaded_cloud, voxel_filtered_cloud);
+    //pcl::PCLPointCloud2::Ptr voxel_filtered_cloud(new pcl::PCLPointCloud2());
+    //CloudHandler::VoxelFilterCloud(loaded_cloud, voxel_filtered_cloud);
 
     pcl::PCLPointCloud2::Ptr upper(new pcl::PCLPointCloud2());
     pcl::PCLPointCloud2::Ptr lower(new pcl::PCLPointCloud2());
-    CloudHandler::CutCloud(voxel_filtered_cloud, upper, lower);
+    CloudHandler::CutCloud(loaded_cloud, upper, lower);
     //saveCloud("upper.ply", *upper, false, false);
     //saveCloud("lower.ply", *lower, false, false);
 
 
-    PointCloud<PointXYZRGB>::Ptr cloud(new PointCloud<PointXYZRGB>);
+    PointCloud<PointXYZRGB>::Ptr cloud(new PointCloud <PointXYZRGB>);
     fromPCLPointCloud2(*lower, *cloud);
     // Find grownd plane
     PointIndices::Ptr inliers(new pcl::PointIndices);
-    PointCloud<PointXYZRGB>::Ptr plane(new pcl::PointCloud<PointXYZRGB>);
+    PointCloud<PointXYZRGB>::Ptr plane(new pcl::PointCloud <PointXYZRGB>);
     copyPointCloud(*cloud, *plane);
 
     auto model_coef = CloudHandler::FindPlane<PointXYZRGB>(plane, inliers);
@@ -95,9 +95,9 @@ int main(int argc, char **argv)
 
 
     // save hooves
-    pcl::PointCloud<pcl::PointXYZRGB>::Ptr hooves(new pcl::PointCloud<pcl::PointXYZRGB>);
+    pcl::PointCloud<pcl::PointXYZRGB>::Ptr hooves(new pcl::PointCloud <pcl::PointXYZRGB>);
     pcl::copyPointCloud(*cloud, *hooves);
-    pcl::ExtractIndices<pcl::PointXYZRGB> extract;
+    pcl::ExtractIndices <pcl::PointXYZRGB> extract;
     extract.setInputCloud(hooves);
     extract.setIndices(inliers);
     extract.setNegative(true);
@@ -108,7 +108,7 @@ int main(int argc, char **argv)
     //saveCloud("hooves.ply", *hooves_cloud, false, false);
 
     // add hooves to cow cloud
-    shared_ptr<PointCloud<PointXYZRGB>> cow_cloud(new pcl::PointCloud<pcl::PointXYZRGB>);
+    shared_ptr <PointCloud<PointXYZRGB>> cow_cloud(new pcl::PointCloud <pcl::PointXYZRGB>);
     pcl::fromPCLPointCloud2(*upper, *cow_cloud);
 
     for (auto p: hooves->points)
@@ -121,7 +121,7 @@ int main(int argc, char **argv)
     //saveCloud("cow.ply", *cow, false, false);
 
     // find pca
-    pcl::PCA<pcl::PointXYZRGB> pca;
+    pcl::PCA <pcl::PointXYZRGB> pca;
     pcl::fromPCLPointCloud2(*cow, *cow_cloud);
     pca.setInputCloud(cow_cloud);
     auto mean = pca.getMean();
@@ -163,21 +163,23 @@ int main(int argc, char **argv)
 
 
     // get cow
-    pcl::PointCloud<PointXYZRGB>::Ptr cows_parallelepiped(new pcl::PointCloud<PointXYZRGB>);
+    pcl::PointCloud<PointXYZRGB>::Ptr cows_parallelepiped(new pcl::PointCloud <PointXYZRGB>);
     pcl::transformPointCloud(*cow_cloud, *cow_cloud, rot_y);
     pcl::transformPointCloud(*cow_cloud, *cow_cloud, rotation_x);
     //pcl::transformPointCloud(*cow_cloud, *cow_cloud, rotation_z);
 
-    CloudHandler::ExportPNGExperimental<PointXYZRGB>(cow_cloud);
+    //CloudHandler::ExportPNGExperimental<PointXYZRGB>(cow_cloud);
+
+    //return 0;
 
     CloudHandler::FlipX<PointXYZRGB>(cow_cloud, cow_cloud);
     CloudHandler::CreateParallelepiped<PointXYZRGB>(cow_cloud, cows_parallelepiped);
 
     // translate cow
-    PointCloud<PointXYZRGB>::Ptr translated_cow(new pcl::PointCloud<PointXYZRGB>);
+    PointCloud<PointXYZRGB>::Ptr translated_cow(new pcl::PointCloud <PointXYZRGB>);
     CloudHandler::TranslateToBase<PointXYZRGB>(cow_cloud, cows_parallelepiped, translated_cow);
 
-    pcl::PassThrough<PointXYZRGB> PRfilter;
+    pcl::PassThrough <PointXYZRGB> PRfilter;
     PRfilter.setInputCloud(translated_cow);
     PRfilter.setFilterFieldName("y");
     PRfilter.setFilterLimits(0.115, 100);
@@ -229,7 +231,10 @@ int main(int argc, char **argv)
     //CloudHandler::Visualize<PointXYZRGB>(translated_cow);
     //CloudHandler::ExportImageDepth<PointXYZRGB>(translated_cow, filename);
     //CloudHandler::Visualize<PointXYZRGB>(translated_cow);
-    CloudHandler::ExportImageRGB<PointXYZRGB>(translated_cow, filename, {1920, 1080}, std::stoi(argv[2]));
+    CloudHandler::ExportImageRGB<PointXYZRGB>(translated_cow,
+                                              filename,
+                                              {1920, 1080},
+                                              std::stoi(argv[2]));
     //cloud_handler.Visualize(translated_cow, mean, vects);
 
     return 0;
